@@ -138,7 +138,13 @@ class Sentry_User implements Iterator, ArrayAccess
 					->where('user_id', $temp['id'])
 					->execute($this->db_instance);
 
+				$notifications = DB::select()
+					->from('users_notifications')
+					->where('user_id', $temp['id'])
+					->execute($this->db_instance);
+
 				$temp['metadata'] = (count($metadata)) ? $metadata->current() : array();
+				$temp['notifications'] = (count($notifications)) ? $notifications->current() : array();
 
 				$this->user = $temp;
 			}
