@@ -1087,10 +1087,25 @@ class Sentry_User implements Iterator, ArrayAccess
 			}
 		}
 
-		// if it is in the config rules & not in the array rules, than we don't have access.
-		if (in_array($resource, $this->rules) and !in_array($resource, $this->permissions))
+		// If the user provides an array of resources to check against, do it
+		if (is_array($resource))
 		{
-			throw new SentryPermissionDenied(__('sentry.permission_denied', array('resource' => $resource)));
+			foreach ($resource as $access)
+			{
+				// if it is in the config rules & not in the array rules, than we don't have access.
+				if (in_array($access, $this->rules) and !in_array($access, $this->permissions))
+				{
+					throw new SentryPermissionDenied(__('sentry.permission_denied', array('resource' => $resource)));
+				}
+			}
+		}
+		else
+		{
+			// if it is in the config rules & not in the array rules, than we don't have access.
+			if (in_array($resource, $this->rules) and !in_array($resource, $this->permissions))
+			{
+				throw new SentryPermissionDenied(__('sentry.permission_denied', array('resource' => $resource)));
+			}
 		}
 
 		return true;
