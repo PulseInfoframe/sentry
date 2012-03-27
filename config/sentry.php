@@ -82,6 +82,46 @@ return array(
 		'time' => 15,
 	),
 
+	/**
+	 * Password Hashing
+	 * Sets hashing strategies for passwords
+	 * Note: you may have to adjust all password related fields in the database depending on the password hash length
+	 */
+	'hash' => array(
+
+		/**
+		 * Strategy to use
+		 * look into classes/sentry/hash/strategy for available strategies ( or make/import your own )
+		 * Must be in strategies below
+		 */
+		'strategy' => 'SimpleAuth',
+
+		'convert'  => array(
+			'enabled' => false,
+			'from'    => '',
+		),
+
+		/**
+		 * Available Strategies for your app
+		 * This is used to set settings for conversion, like switching from SimpleAuth hashing to Sha256 or vice versa
+		 */
+		'strategies' => array(
+			/**
+			 * config options needed for hashing
+			 * example:
+			 * 'Strategy' => array(); // additional options needed for password hashing in your driver like a configurable salt
+			 */
+
+			'Sha256' => array(),
+
+			'SimpleAuth' => array(
+
+				// simpleauth salt of your last app if any
+				'salt' => '',
+			),
+		),
+	),
+
 	'permissions' => array(
 
 		/**
@@ -105,27 +145,27 @@ return array(
 		'rules' => array(
 			/**
 			 * config samples.
+			 *
+			 *	// user module admin
+			 *	'user_admin_create',
+			 *	'user_admin_read',
+			 *	'user_admin_update',
+			 *	'user_admin_delete',
+			 *	'user_permissions',
+			 *
+			 *	// blog module admin
+			 *	'blog_admin_create',
+			 *	'blog_admin_read',
+			 *	'blog_admin_update',
+			 *	'blog_admin_delete',
+			 *
+			 *	// product module admin
+			 *	'product_admin_create',
+			 *	'product_admin_read',
+			 *	'product_admin_update',
+			 *	'product_admin_delete',
+			 */
 
-			// user module admin
-			'user_admin_create',
-			'user_admin_read',
-			'user_admin_update',
-			'user_admin_delete',
-			'user_permissions',
-
-			// blog module admin
-			'blog_admin_create',
-			'blog_admin_read',
-			'blog_admin_update',
-			'blog_admin_delete',
-
-			// product module admin
-			'product_admin_create',
-			'product_admin_read',
-			'product_admin_update',
-			'product_admin_delete',
-
-			 **/
 		)
 	)
 );
