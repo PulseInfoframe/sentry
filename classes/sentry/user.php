@@ -1015,14 +1015,19 @@ class Sentry_User implements Iterator, ArrayAccess
 
 		// get the current permissions from the user column.
 		$current_permissions = json_decode($this->user['permissions'], true);
-
 		foreach ($rules as $key => $val)
 		{
 			if (in_array($key, $this->rules) or $key === Config::get('sentry.permissions.superuser'))
 			{
-				if (is_array($current_permissions))
+
+				if (is_array($current_permissions) && ! empty($val))
 				{
 					$current_permissions = Arr::merge($current_permissions, array($key => $val));
+				}
+				else if (is_array($current_permissions) && empty($val) )
+				{
+					// Delete empty values from the permissions array
+					Arr::delete($current_permissions, $key);
 				}
 				else
 				{
@@ -1037,6 +1042,7 @@ class Sentry_User implements Iterator, ArrayAccess
 
 		if (empty($current_permissions))
 		{
+
 			return $this->update(array('permissions' => ''));
 		}
 		else
@@ -1095,7 +1101,7 @@ class Sentry_User implements Iterator, ArrayAccess
 				// if it is in the config rules & not in the array rules, than we don't have access.
 				if (in_array($access, $this->rules) and !in_array($access, $this->permissions))
 				{
-					throw new SentryPermissionDenied(__('sentry.permission_denied', array('resource' => $resource)));
+					return false;
 				}
 			}
 		}
@@ -1104,7 +1110,7 @@ class Sentry_User implements Iterator, ArrayAccess
 			// if it is in the config rules & not in the array rules, than we don't have access.
 			if (in_array($resource, $this->rules) and !in_array($resource, $this->permissions))
 			{
-				throw new SentryPermissionDenied(__('sentry.permission_denied', array('resource' => $resource)));
+				return false;
 			}
 		}
 
