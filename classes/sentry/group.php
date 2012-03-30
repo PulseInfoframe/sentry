@@ -3,10 +3,10 @@
  * Part of the Sentry package for FuelPHP.
  *
  * @package    Sentry
- * @version    1.0
+ * @version    2.0
  * @author     Cartalyst LLC
  * @license    MIT License
- * @copyright  2011 Cartalyst LLC
+ * @copyright  2011 - 2012 Cartalyst LLC
  * @link       http://cartalyst.com
  */
 
@@ -358,7 +358,7 @@ class Sentry_Group implements Iterator, ArrayAccess
 
 
 	/**
-	 * add/update group permission rules.
+	 * Add/Update group permission rules.
 	 *
 	 * Usage:
 	 *
@@ -393,11 +393,11 @@ class Sentry_Group implements Iterator, ArrayAccess
 			 */
 			if (in_array($key, static::$rules) or $key === Config::get('sentry.permissions.superuser'))
 			{
-				if (is_array($current_permissions) and $val === 1 and !Arr::key_exists($current_permissions, $key))
+				if (is_array($current_permissions) and $val === 1 and ! Arr::key_exists($current_permissions, $key))
 				{
 					$current_permissions = Arr::merge($current_permissions, array($key => $val));
 				}
-				elseif (!is_array($current_permissions) and $val === 1)
+				elseif ( ! is_array($current_permissions) and $val === 1)
 				{
 					$current_permissions = array($key => $val);
 				}

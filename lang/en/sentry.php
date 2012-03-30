@@ -42,6 +42,10 @@ return array(
     'single_user_required' => 'Attempts can only be added to a single user, an array was given.',
     'user_suspended'       => 'You have been suspended from trying to login into account ":account" for :time minutes.',
 
+    /** Hashing **/
+    'hash_strategy_null'      => 'Hashing strategy is null or empty. A hashing strategy must be set.',
+    'hash_strategy_not_exist' => 'Hashing strategy file does not exist.',
+
 	/** Permissions Messages **/
 	'no_rules_added'    => 'Oops, you forgot to specify any rules to be added.',
 	'rule_not_found'    => 'The rule :rule, does not exist in your configured rules. Please check your rules in the sentry config.',
