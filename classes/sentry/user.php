@@ -3,10 +3,10 @@
  * Part of the Sentry package for FuelPHP.
  *
  * @package    Sentry
- * @version    1.0
+ * @version    2.0
  * @author     Cartalyst LLC
  * @license    MIT License
- * @copyright  2011 Cartalyst LLC
+ * @copyright  2011 - 2012 Cartalyst LLC
  * @link       http://cartalyst.com
  */
 
@@ -117,10 +117,17 @@ class Sentry_User implements Iterator, ArrayAccess
 		$_db_instance = trim(Config::get('sentry.db_instance'));
 		$this->rules = Config::get('sentry.permissions.rules');
 
-		// init a hashing mechanism
-		$strategy = Config::get('sentry.hash.strategy');
-		$options = Config::get('sentry.hash.strategies.'.$strategy);
-		$this->hash = Hash_Driver::forge($strategy, $options);
+		try
+		{
+			// init a hashing mechanism
+			$strategy = Config::get('sentry.hash.strategy');
+			$options = Config::get('sentry.hash.strategies.'.$strategy);
+			$this->hash = Sentry_Hash_Driver::forge($strategy, $options);
+		}
+		catch (SentryGroupNotFoundException $e)
+		{
+			throw new \SentryUserException($e->getMessage());
+		}
 
 		// db_instance check
 		if ( ! empty($_db_instance) )
@@ -199,16 +206,16 @@ class Sentry_User implements Iterator, ArrayAccess
 			if (Config::get('sentry.permissions.enabled'))
 			{
 				// let's get the group permissions first.
-				foreach($this->groups as $group)
+				foreach ($this->groups as $group)
 				{
-					if (!empty($group['permissions']))
+					if ( ! empty($group['permissions']))
 					{
 						// group column permissions
 						$group_permissions = json_decode($group['permissions'], true);
 
 						foreach ($group_permissions as $key => $val)
 						{
-							if (!empty($key) and $val === 1)
+							if ( ! empty($key) and $val === 1)
 							{
 								$this->permissions = array_unique(Arr::merge($this->permissions, array($key)));
 							}
@@ -223,7 +230,7 @@ class Sentry_User implements Iterator, ArrayAccess
 				/**
 				 * now let's merge the user's permissions
 				 */
-				if (!empty($this->user['permissions']))
+				if ( ! empty($this->user['permissions']))
 				{
 					// user column permissions
 					$user_permissions = json_decode($this->user['permissions'], true);
@@ -238,7 +245,7 @@ class Sentry_User implements Iterator, ArrayAccess
 						{
 							$this->permissions = Arr::merge(array_diff($this->permissions, array($key)));
 						}
-						elseif(!is_array($this->permissions) and $val === 1)
+						elseif( ! is_array($this->permissions) and $val === 1)
 						{
 							$this->permissions = array($val);
 						}
@@ -297,7 +304,7 @@ class Sentry_User implements Iterator, ArrayAccess
 				// update and resend activation code
 				$this->user = $user_exists;
 
-				$hash = \Str::random('alnum', 24);
+				$hash = Str::random('alnum', 24);
 
 				$update = array(
 					'activation_hash' => $hash
@@ -950,7 +957,7 @@ class Sentry_User implements Iterator, ArrayAccess
 		{
 			$strategy = Config::get('sentry.hash.convert.from');
 			$options = Config::get('sentry.hash.strategies.'.$strategy);
-			$hash = Hash_Driver::forge($strategy, $options);
+			$hash = Sentry_Hash_Driver::forge($strategy, $options);
 
 			if ($hash->check_password($password, $this->user[$field]))
 			{
@@ -976,7 +983,7 @@ class Sentry_User implements Iterator, ArrayAccess
 	}
 
 	/**
-	 * return user's custom permissions json
+	 * Return user's custom permissions json
 	 *
 	 * @return  array|json
 	 * @author  Daniel Berry
@@ -987,7 +994,7 @@ class Sentry_User implements Iterator, ArrayAccess
 	}
 
 	/**
-	 * return user's merged permissions
+	 * Return user's merged permissions
 	 *
 	 * @return  array
 	 * @author  Daniel Berry
@@ -998,7 +1005,7 @@ class Sentry_User implements Iterator, ArrayAccess
 	}
 
 	/**
-	 * add/update group permission rules.
+	 * Add/Update group permission rules.
 	 *
 	 * Usage:
 	 *
@@ -1027,7 +1034,7 @@ class Sentry_User implements Iterator, ArrayAccess
 		{
 			if (in_array($key, $this->rules) or $key === Config::get('sentry.permissions.superuser'))
 			{
-
+1
 				if (is_array($current_permissions) && ! empty($val))
 				{
 					$current_permissions = Arr::merge($current_permissions, array($key => $val));
@@ -1048,7 +1055,7 @@ class Sentry_User implements Iterator, ArrayAccess
 			}
 		}
 
-		if (empty($current_permissions))
+		if ( ! is_array($current_permissions))
 		{
 
 			return $this->update(array('permissions' => ''));
@@ -1062,7 +1069,7 @@ class Sentry_User implements Iterator, ArrayAccess
 
 
 	/**
-	 * check to see if the user has access to a resource
+	 * Check to see if the user has access to a resource
 	 *
 	 * The user can specify a specific resource. If no resource is provided,
 	 * then Sentry will generate the resource automatically. If the resource
@@ -1085,29 +1092,34 @@ class Sentry_User implements Iterator, ArrayAccess
 			return true;
 		}
 
-		if (empty($resource))
-		{
-			$module = Request::active()->module;
-			$controller = str_replace('controller_', '', Str::lower(Inflector::denamespace(Request::active()->controller)));
-			$method = '_'.Request::active()->action;
 
-			if (!empty($module))
-			{
-				$resource = $module.'_'.$controller.$method;
-			}
-			else
-			{
-				$resource = $controller.$method;
-			}
+		/**
+		 * Get the current page in our rule formate
+		 * We'll use this if there is no $resource set and to check our array against.
+		 */
+		$module = Request::active()->module;
+		$controller = str_replace('controller_', '', Str::lower(Inflector::denamespace(Request::active()->controller)));
+		$method = '_'.Request::active()->action;
+
+		if ( ! empty($module))
+		{
+			$current_resource = $module.'_'.$controller.$method;
+		}
+		else
+		{
+			$current_resource = $controller.$method;
 		}
 
-		// If the user provides an array of resources to check against, do it
+		/**
+		 * if we have an array of resources, let's loop through them
+		 * and if it's not an array just check the single resource
+		 */
 		if (is_array($resource))
 		{
-			foreach ($resource as $access)
+			foreach ($resource as $rule)
 			{
 				// if it is in the config rules & not in the array rules, than we don't have access.
-				if (in_array($access, $this->rules) and !in_array($access, $this->permissions))
+				if (in_array($rule, $this->rules) and ! in_array($rule, $this->permissions) and $rule === $current_resource)
 				{
 					return false;
 				}
@@ -1115,8 +1127,11 @@ class Sentry_User implements Iterator, ArrayAccess
 		}
 		else
 		{
+			// assign $resource if empty.
+			$resource = ($resource) ?: $current_resource;
+
 			// if it is in the config rules & not in the array rules, than we don't have access.
-			if (in_array($resource, $this->rules) and !in_array($resource, $this->permissions))
+			if (in_array($resource, $this->rules) and ! in_array($resource, $this->permissions))
 			{
 				return false;
 			}

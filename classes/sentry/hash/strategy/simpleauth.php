@@ -3,26 +3,21 @@
  * Part of the Sentry package for FuelPHP.
  *
  * @package    Sentry
- * @version    1.0
+ * @version    2.0
  * @author     Cartalyst LLC
  * @license    MIT License
- * @copyright  2011 Cartalyst LLC
+ * @copyright  2011 - 2012 Cartalyst LLC
  * @link       http://cartalyst.com
  */
 
  namespace Sentry;
 
- class Hash_Strategy_SimpleAuth extends Hash_Driver
+ class Sentry_Hash_Strategy_SimpleAuth extends Sentry_Hash_Driver
  {
  	/**
  	 * @var  object  hashing object
  	 */
  	protected $hasher  = null;
-
- 	/**
- 	 * @var  array  array of configurable options for simpleauth hashing
- 	 */
- 	protected $options = array();
 
  	/**
  	 * Constructor

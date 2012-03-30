@@ -4,10 +4,10 @@
  * Part of the Sentry package for FuelPHP.
  *
  * @package    Sentry
- * @version    1.0
+ * @version    2.0
  * @author     Cartalyst LLC
  * @license    MIT License
- * @copyright  2011 Cartalyst LLC
+ * @copyright  2011 - 2012 Cartalyst LLC
  * @link       http://cartalyst.com
  */
 
@@ -94,7 +94,7 @@ return array(
 		 * look into classes/sentry/hash/strategy for available strategies ( or make/import your own )
 		 * Must be in strategies below
 		 */
-		'strategy' => 'SimpleAuth',
+		'strategy' => 'Sentry',
 
 		'convert'  => array(
 			'enabled' => false,
@@ -112,12 +112,16 @@ return array(
 			 * 'Strategy' => array(); // additional options needed for password hashing in your driver like a configurable salt
 			 */
 
-			'Sha256' => array(),
+			'Sentry' => array(),
 
 			'SimpleAuth' => array(
-
-				// simpleauth salt of your last app if any
 				'salt' => '',
+			),
+
+			'BCrypt' => array(
+				'strength' => 4,
+				// if you want to use a bacrypt hash with an algorithm
+				'hashing_algorithm' => null,
 			),
 		),
 	),
