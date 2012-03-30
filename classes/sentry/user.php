@@ -1034,7 +1034,6 @@ class Sentry_User implements Iterator, ArrayAccess
 		{
 			if (in_array($key, $this->rules) or $key === Config::get('sentry.permissions.superuser'))
 			{
-
 				if (is_array($current_permissions) && ! empty($val))
 				{
 					$current_permissions = Arr::merge($current_permissions, array($key => $val));
