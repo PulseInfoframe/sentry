@@ -55,6 +55,22 @@ class Sentry_User implements Iterator, ArrayAccess
 	protected $user = array();
 
 	/**
+	 * @var  array  Passwords
+	 */
+	protected $passwords = array();
+
+	/**
+	 * @var  array  Password Fields
+	 */
+	protected $password_fields = array(
+		'password',
+		'password_reset_hash',
+		'temp_password',
+		'remember_me',
+		'activation_hash',
+	);
+
+	/**
 	 * @var  array  Groups
 	 */
 	protected $groups = array();
@@ -180,7 +196,11 @@ class Sentry_User implements Iterator, ArrayAccess
 
 				$temp['metadata'] = (count($metadata)) ? $metadata->current() : array();
 
-				$this->user = $temp;
+				// lets set and remove password fields
+				$temp = $this->extract_passwords($temp);
+
+				$this->user = $temp['user'];
+				$this->passwords = $temp['passwords'];
 			}
 			// user doesn't exist
 			else
@@ -205,6 +225,29 @@ class Sentry_User implements Iterator, ArrayAccess
 			 */
 			if (Config::get('sentry.permissions.enabled'))
 			{
+				/**
+				 * Check to see if custom rule exist for the current module. If custom
+				 * rules do exist, than let's merge them with the rules we found in the
+				 * primary sentry config.
+				 * 
+				 * Custom rules should be set in the modules config file in a 'rules' => array()
+				 * that matches the structure in the sentry config.
+				 * 
+				 * Rules are added to the module config file because it follows FuelPHP convention
+				 * and this is a file that will probably normally already exist meaning one less file
+				 * to create, check for and load.
+				 */
+				if (isset(\Request::active()->module))
+				{
+					\Config::load(\Request::active()->module, true);
+					$module_permissions = Config::get(\Request::active()->module.'.rules');
+
+					if (!empty($module_permissions))
+					{
+						$this->rules = Arr::merge($this->rules, $module_permissions);
+					}
+				}
+			
 				// let's get the group permissions first.
 				foreach ($this->groups as $group)
 				{
@@ -298,23 +341,24 @@ class Sentry_User implements Iterator, ArrayAccess
 		$user_exists = $this->user_exists($user[$this->login_column]);
 		if ($user_exists)
 		{
+			// create new user object
+			$user = new static((int) $user_exists['user']['id']);
+
 			// check if account is not activated
-			if ($activation and $user_exists['activated'] != 1)
+			if ($activation and $user->get('activated') != 1)
 			{
 				// update and resend activation code
-				$this->user = $user_exists;
-
 				$hash = Str::random('alnum', 24);
 
 				$update = array(
 					'activation_hash' => $hash
 				);
 
-				if ($this->update($update))
+				if ($user->update($update))
 				{
 					return array(
-						'id'   => $this->user['id'],
-						'hash' => base64_encode($user[$this->login_column]).'/'.$hash
+						'id'   => $user->user['id'],
+						'hash' => base64_encode($user[$user->login_column]).'/'.$hash
 					);
 				}
 				return false;
@@ -588,8 +632,13 @@ class Sentry_User implements Iterator, ArrayAccess
 		if ($update_user or $update_metadata)
 		{
 			$update['metadata'] = $fields['metadata'] + $this->user['metadata'];
+
+			// lets remove passwords from global user array
+			$update = $this->extract_passwords($update);
+
 			// change user values in object
-			$this->user = $update + $this->user;
+			$this->user = $update['user'] + $this->user;
+			$this->passwords = $update['passwords'] + $this->passwords;
 
 			return true;
 		}
@@ -639,6 +688,7 @@ class Sentry_User implements Iterator, ArrayAccess
 
 		// update user to null
 		$this->user = array();
+		$this->passwords = array();
 
 		return true;
 
@@ -725,8 +775,18 @@ class Sentry_User implements Iterator, ArrayAccess
 			// loop through requested fields
 			foreach ($field as $key)
 			{
-                                // check to see if field exists in user
-				$val = \Arr::get($this->user, $key, '__MISSING_KEY__');
+				// see if field is a password field
+				// see if field is a password field
+				if (in_array($key, $this->password_fields))
+				{
+					$val = \Arr::get($this->passwords, $key, '__MISSING_KEY__');
+				}
+				else
+				{
+					 // check to see if field exists in user
+					$val = \Arr::get($this->user, $key, '__MISSING_KEY__');
+				}
+
 				if ($val !== '__MISSING_KEY__')
 				{
 					$values[$key] = $val;
@@ -744,8 +804,18 @@ class Sentry_User implements Iterator, ArrayAccess
 		// if single field was passed - return its value
 		else
 		{
-			// check to see if field exists in user
-			$val = \Arr::get($this->user, $field, '__MISSING_KEY__');
+			// see if field is a password field
+			if (in_array($field, $this->password_fields))
+			{
+				$val = \Arr::get($this->passwords, $field, '__MISSING_KEY__');
+			}
+			else
+			{
+				// check to see if field exists in user
+				$val = \Arr::get($this->user, $field, '__MISSING_KEY__');
+			}
+
+			// if val is not missing, return it
 			if ($val !== '__MISSING_KEY__')
 			{
 				return $val;
@@ -933,6 +1003,9 @@ class Sentry_User implements Iterator, ArrayAccess
 
 			$result['metadata'] = (count($metadata)) ? $metadata->current() : array();
 
+			// lets set and remove password fields
+			$result = $this->extract_passwords($result);
+
 			return $result;
 		}
 
@@ -948,7 +1021,7 @@ class Sentry_User implements Iterator, ArrayAccess
 	 */
 	public function check_password($password, $field = 'password')
 	{
-		if ($this->hash->check_password($password, $this->user[$field]))
+		if ($this->hash->check_password($password, $this->passwords[$field]))
 		{
 			return true;
 		}
@@ -959,7 +1032,7 @@ class Sentry_User implements Iterator, ArrayAccess
 			$options = Config::get('sentry.hash.strategies.'.$strategy);
 			$hash = Sentry_Hash_Driver::forge($strategy, $options);
 
-			if ($hash->check_password($password, $this->user[$field]))
+			if ($hash->check_password($password, $this->passwords[$field]))
 			{
 				$this->update(array(
 					'password' => $password
@@ -1038,9 +1111,8 @@ class Sentry_User implements Iterator, ArrayAccess
 				{
 					$current_permissions = Arr::merge($current_permissions, array($key => $val));
 				}
-				else if (is_array($current_permissions) && empty($val) )
+				if (is_array($current_permissions) and empty($val))
 				{
-					// Delete empty values from the permissions array
 					Arr::delete($current_permissions, $key);
 				}
 				else
@@ -1137,6 +1209,24 @@ class Sentry_User implements Iterator, ArrayAccess
 		}
 
 		return true;
+	}
+
+	protected function extract_passwords($user)
+	{
+		$passwords = array();
+		foreach ($user as $field => $value)
+		{
+			if (in_array($field, $this->password_fields))
+			{
+				$passwords[$field] = $value;
+				unset($user[$field]);
+			}
+		}
+
+		return array(
+			'user' => $user,
+			'passwords' => $passwords
+		);
 	}
 
 
